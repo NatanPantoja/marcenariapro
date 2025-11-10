@@ -1,0 +1,260 @@
+// quando for atualizar o schema, rode `npx prisma migrate dev --name your_migration_name`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  
+  id        String    @id @default(uuid())
+  name      String    // Nome da empresa do marceneiro
+  cnpj      String?   @unique
+  logoUrl   String?   // Logo da empresa do marceneiro
+  description String? @db.Text // Texto "Sobre a empresa" para o PDF
+  
+  // --- CAMPOS NOVOS PARA O PDF "Realizando Sonhos" ---
+  phone           String? // WhatsApp da empresa
+  contactEmail    String? // Email de contato
+  address         String? // Endereço
+  websiteUrl      String? // Site
+  instagramHandle String? // Instagram
+
+  // Gerenciamento do SaaS (Seu Painel Admin)
+  
+  planId         String?
+  planStatus     String    @default("trial") // 'trial', 'active', 'overdue', 'canceled'
+  trialExpiresAt DateTime?
+  
+  plan Plan? @relation(fields: [planId], references: [id])
+  
+  // Relações
+  users       User[]
+  clients     Client[]
+  materials   Material[]
+  costFixed   CostFixed[]
+  costVars    CostVariable[]
+  projects    Project[]
+  quotes      Quote[]
+  payments    ProjectPayment[]
+
+  @@map("companies")
+}
+
+model User {
+  // --- CORRIGIDO (Int -> String) ---
+  id        String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  companyId String
+  name      String
+  email     String    @unique
+  password  String    // Lembre-se de fazer o hash disso!
+  
+  // --- MELHORIA (String -> Enum) ---
+  role      Role      @default(USER) // admin, user
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Client {
+  // --- CORRIGIDO (Int -> String) ---
+  id        String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  companyId String
+  name      String    // Nome do cliente do marceneiro
+  phone     String?
+  email     String?
+  document  String?   // CPF ou CNPJ (para o PDF)
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@index([companyId])
+  @@map("clients")
+}
+
+model Material {
+  // --- CORRIGIDO (Int -> String) ---
+  id         String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  companyId  String
+  name       String
+  unit       String // ex: m, m2, unidade, kg
+  price      Decimal   @db.Decimal(12, 2)
+  stockQty   Decimal?  @db.Decimal(12, 2)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projectItems ProjectItem[]
+
+  @@index([companyId])
+  @@map("materials")
+}
+
+model CostFixed {
+  // --- CORRIGIDO (Int -> String) ---
+  id          String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  companyId   String
+  description String
+  amount      Decimal   @db.Decimal(12, 2)
+  frequency   String    @default("monthly")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("cost_fixed")
+}
+
+model CostVariable {
+  // --- CORRIGIDO (Int -> String) ---
+  id          String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  companyId   String
+  description String
+  amount      Decimal   @db.Decimal(12, 2)
+  occurredAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("cost_variable")
+}
+
+model Project {
+  // --- CORRIGIDO (Int -> String) ---
+  id            String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  companyId     String
+  // --- CORRIGIDO (Int? -> String?) ---
+  clientId      String?
+  
+  title         String
+  description   String?   @db.Text
+  status        String    @default("draft")
+  price         Decimal   @db.Decimal(12, 2) @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Campos do PDF (sem mudanças de tipo)
+  quoteNumber       String?
+  quoteExpiresAt    DateTime?
+  imageUrl          String?
+  dimensions        String?
+  deliveryTimeframe String?
+  priceNotes        String?
+  paymentTerms      String?   @db.Text
+  includedFeatures  Json?
+  
+  totalMaterials Decimal  @db.Decimal(12, 2) @default(0)
+  laborCost     Decimal   @db.Decimal(12, 2) @default(0)
+  
+  // Relações
+  company  Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client   Client?     @relation(fields: [clientId], references: [id])
+  items    ProjectItem[]
+  quotes   Quote[]
+  payments ProjectPayment[]
+
+  @@map("projects")
+}
+
+model ProjectItem {
+  // --- CORRIGIDO (Int -> String) ---
+  id          String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  projectId   String
+  // --- CORRIGIDO (Int? -> String?) ---
+  materialId  String?
+  
+  description String
+  unit        String
+  quantity    Decimal   @db.Decimal(12, 2)
+  unitPrice   Decimal   @db.Decimal(12, 2)
+  totalPrice  Decimal   @db.Decimal(12, 2)
+
+  project  Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  material Material? @relation(fields: [materialId], references: [id])
+
+  @@index([projectId])
+  @@map("project_items")
+}
+
+model Quote {
+  // --- CORRIGIDO (Int -> String) ---
+  id          String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  projectId   String
+  // --- CORRIGIDO (Int -> String) ---
+  companyId   String
+  // --- CORRIGIDO (Int? -> String?) ---
+  generatedBy String? // ID do User que gerou
+  pdfUrl      String?
+  createdAt   DateTime  @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("quotes")
+}
+
+model ProjectPayment {
+  // --- CORRIGIDO (Int -> String) ---
+  id          String    @id @default(uuid())
+  // --- CORRIGIDO (Int -> String) ---
+  companyId   String
+  // --- CORRIGIDO (Int -> String) ---
+  projectId   String
+  
+  description String
+  amount      Decimal   @db.Decimal(12, 2)
+  dueDate     DateTime
+  status      String    @default("pending")
+  paidAt      DateTime?
+  promiseDate DateTime?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([projectId])
+  @@map("project_payments")
+}
+
+model Plan {
+  // --- CORRIGIDO (Int -> String) ---
+  id        String   @id @default(uuid())
+  name      String   @unique
+  price     Decimal  @db.Decimal(10, 2)
+  frequency String   // 'monthly' ou 'yearly'
+  features  Json?
+
+  companies Company[]
+
+  @@map("plans")
+}
+
+// --- MELHORIA (Adicionando o Enum) ---
+enum Role {
+  ADMIN // Dono da Marcenaria
+  USER  // Funcionário da Marcenaria
+}
