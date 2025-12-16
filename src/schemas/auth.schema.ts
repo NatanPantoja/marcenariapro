@@ -1,5 +1,3 @@
-// src/schemas/auth.schema.ts
-
 import { z } from "zod";
 
 export const registerSchema = z.object({
@@ -32,3 +30,16 @@ export const registerSchema = z.object({
 
 // (Opcional) Exporta o tipo inferido para usar no controller
 export type RegisterBody = z.infer<typeof registerSchema>["body"];
+
+export const loginSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .nonempty("O e-mail é obrigatório.")
+      .email("Formato de e-mail inválido."),
+
+    password: z.string().nonempty("A senha é obrigatória."),
+  }),
+});
+
+export type LoginBody = z.infer<typeof loginSchema>["body"];

@@ -1,12 +1,12 @@
 import "dotenv/config";
 
 import express, { Request, Response, NextFunction } from "express";
-import "express-async-errors";
 import cors from "cors";
 
 // Importa suas rotas e middlewares
 import { authRouter } from "./routers/auth.router";
 import { AppError, errorHandler } from "./middlewares/errorHandler";
+import { adminRouter } from "./routers/admin.router";
 
 // Cria a aplicação Express
 const app = express();
@@ -22,11 +22,7 @@ app.use(express.json());
 // --- Configuração das Rotas ---
 // Todas as rotas de autenticação começarão com /auth
 app.use("/auth", authRouter);
-
-// Rota de "ping" para testar se o servidor está no ar
-app.get("/", (req, res) => {
-  res.json({ message: "API MarcenariaPro v1.0.0" });
-});
+app.use("/admin", adminRouter);
 
 // --- Middleware de Erro ---
 // DEVE ser o último middleware a ser usado (depois de todas as rotas)

@@ -2,7 +2,7 @@
 
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../middlewares/errorHandler";
-import { RegisterBody } from "../schemas/auth.schema";
+import { RegisterBody, LoginBody } from "../schemas/auth.schema";
 
 // 1. IMPORTE O SERVIÇO (agora ele existe)
 import { authService } from "../services/auth.service";
@@ -28,6 +28,26 @@ export const registerController = async (
       message: "Usuário e empresa criados com sucesso!",
       user,
       company,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+//Login
+export const loginController = async (
+  req: Request<{}, {}, LoginBody>,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { email, password } = req.body;
+
+    const result = await authService.login({ email, password });
+
+    return res.status(200).json({
+      message: "Login realizado com sucesso!",
+      token: result.token,
+      user: result.user,
     });
   } catch (error) {
     return next(error);

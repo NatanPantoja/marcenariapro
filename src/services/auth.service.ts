@@ -2,7 +2,9 @@ import { prisma } from "../lib/prisma";
 import { AppError } from "../middlewares/errorHandler";
 import { userService } from "./usuario/user.service";
 import { companyService } from "./empresa/company.service";
-import { RegisterBody } from "../schemas/auth.schema";
+import { RegisterBody, LoginBody } from "../schemas/auth.schema";
+import bcrypt from "bcryptjs";
+import { generateToken } from "../lib/jwt";
 
 export const authService = {
   /**
@@ -48,5 +50,38 @@ export const authService = {
       if (error instanceof AppError) throw error;
       throw new AppError("Não foi possível completar o registro.", 500);
     }
+  },
+
+  // login function
+  async login(data: LoginBody) {
+    const { email, password } = data;
+
+    // 1. Busca o usuário pelo e-mail
+    const user = await userService.findByEmail(email);
+
+    // Se não achar o usuário, lança erro de credenciais inválidas
+    if (!user) {
+      throw new AppError("E-mail ou senha incorretos.", 401);
+    }
+
+    // 2. Compara a senha enviada com o hash do banco
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      throw new AppError("E-mail ou senha incorretos.", 401);
+    }
+
+    // 3. Gera o Token JWT
+    const token = generateToken({
+      userId: user.id,
+      companyId: user.companyId,
+      role: user.role,
+    });
+
+    // Remove a senha antes de retornar os dados do usuário
+    const userResponse = { ...user };
+    delete (userResponse as any).password;
+
+    return { token, user: userResponse };
   },
 };

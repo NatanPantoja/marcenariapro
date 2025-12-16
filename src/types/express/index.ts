@@ -1,10 +1,17 @@
+import { Request } from "express";
+
+// Definimos a interface aqui para ficar organizado
 interface RequestUser {
   id: string;
-  role: "admin" | "user";
+  companyId: string; // Essencial para filtrar dados da empresa
+  role: string; // String genérica para aceitar ADMIN, USER e SAAS_OWNER
 }
 
-declare namespace Express {
-  export interface Request {
-    user: RequestUser;
+// Expandimos o Express globalmente
+declare global {
+  namespace Express {
+    interface Request {
+      user: RequestUser;
+    }
   }
 }
